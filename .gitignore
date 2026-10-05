@@ -1,0 +1,14 @@
+# Large simulation products live in $NBODY_RUNS (default ~/nbody_runs), never in the repo
+*.hdf5
+*.h5
+snapshot_*
+restartfiles/
+output/
+build/
+Gadget4
+# Slurm logs
+*.out
+# Python / Jupyter
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
