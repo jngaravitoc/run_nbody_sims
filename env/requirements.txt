@@ -1,0 +1,12 @@
+# Third-party Python dependencies, pinned to the versions verified on geryon3 (2026-10-02).
+# Agama, InkWell and pynbody are built from source by env/install_python_env.sh.
+numpy==2.4.6
+scipy==1.17.1
+h5py==3.16.0
+pyyaml==6.0.3
+pytreegrav==1.4.0
+matplotlib==3.11.2
+cython
+jupyterlab==4.6.4
+nbconvert
+ipykernel

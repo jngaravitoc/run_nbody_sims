@@ -1,0 +1,27 @@
+diff --git a/setup.py b/setup.py
+index 3de26d6..e06c7ef 100644
+--- a/setup.py
++++ b/setup.py
+@@ -541,6 +541,22 @@ PyInit_agamatest(void) {
+                 "on an ARM (Apple Silicon/M1) machine, and the Python extension module " +
+                 "compiled for the ARM architecture is incompatible with the Python interpreter. " +
+                 "The solution is to install a native ARM Python version (e.g., Anaconda 2022.05 or newer)")
++
++        # Linux-specific fallback for Python built without --enable-shared (no libpython.so available):
++        # build the extension .so with NO Python link flags (Python symbols are resolved at import time
++        # by the interpreter), and link the static libpython.a only into standalone executables.
++        # This is the standard model for Linux Python C extensions.
++        if not MSVC:
++            print('    **** Trying Linux no-PIC fallback: empty SO flags, static lib in exe ****')
++            for PYTHON_A_DIR in compressList([sysconfig.get_config_var(x) for x in ['LIBPL', 'LIBDIR', 'srcdir']]):
++                PYTHON_A = os.path.join(PYTHON_A_DIR, 'libpython%s.a' % PY_VERSION)
++                if os.path.isfile(PYTHON_A):
++                    LINKFORSHARED = [x for x in get_config_var('LINKFORSHARED').split()
++                        if not x.startswith('-Wl,-stack_size,')]
++                    PYTHON_EXE_FLAGS = [PYTHON_A] + PYTHON_LIB_EXTRA + LINKFORSHARED
++                    if tryPythonCode([], PYTHON_EXE_FLAGS):
++                        return [], PYTHON_EXE_FLAGS
++
+         # if none of the above combinations worked, give up...
+         raise CompileError('Could not compile test program which uses libpython' +
+             sysconfig.get_config_var('VERSION'))

@@ -1,0 +1,62 @@
+# Isolated MW-like galaxy with an isothermal gas disk -- LOW-RESOLUTION TEST (100k particles).
+# Physically identical to inkwell_mw_gas.yaml; only the particle numbers differ
+# (same 60 / 30 / 6.67 / 3.33 % split).  Units: Msun, kpc, K.
+dynamics: agama            # DF-based equilibrium (Agama) for halo, bulge and stellar disk
+agama:
+  iterations: 3
+
+cosmology:                 # defines r_vir (Planck 2018, z = 0)
+  omega_m: 0.315
+  hubble: 0.674
+  redshift: 0.0
+  omega_b: 0.0             # 0 => virial_mass is the DM halo mass. With omega_b > 0 InkWell
+                           # scales the NFW down by (1 - omega_b/omega_m) = 0.84
+
+
+halo:                      # NFW, M_vir = 1e12 Msun, c = 10 (Dutton & Maccio 2014)
+  n_particles: 60000
+  type: nfw
+  virial_mass: 1.0e+12
+  concentration: 10.0
+  truncation: 1.0          # r_t = r_vir
+  cutoff: 1.0001
+
+bulge:                     # Hernquist, a = r_e/1.815 ~ 0.65 kpc from InkWell's r_e-M relation
+  n_particles: 6667
+  mass: 1.0e+10
+  re_factor: 1.0
+  truncation: 0.0          # 0 = 40 a
+  type: stars
+
+hot_gas:                   # not used in this example
+  n_particles: 0
+  mass: 0.0
+
+stellar_halo:              # not used in this example
+  n_particles: 0
+  mass: 0.0
+
+disks:
+  - type: stellar          # thin disk: Bland-Hawthorn & Gerhard (2016)
+    n_particles: 30000
+    mass: 4.5e+10
+    scale_length: 3.0
+    scale_height: 0.3
+    flare: false
+    radial_limit: 10.0     # in scale lengths -> 30 kpc
+    vertical_limit: 10.0   # in scale heights -> 3 kpc
+    toomre_q: 2.0          # Q at R = 2 R_d: stable against bars/spirals for ~Gyr
+
+  - type: isothermal       # gas disk: 10% of the 5e10 Msun disk, 1e4 K
+    n_particles: 3333
+    mass: 5.0e+9
+    scale_length: 6.0
+    scale_height: 0.1      # initial guess; real profile is set by hydrostatic equilibrium
+    flare: false
+    radial_limit: 5.0      # in scale lengths -> 30 kpc
+    vertical_limit: 20.0
+    temperature: 1.0e+4
+
+assembly:
+  rotation: none           # disk spins counter-clockwise about +z
+  correct_halo_momentum: true

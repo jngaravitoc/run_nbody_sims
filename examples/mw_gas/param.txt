@@ -1,0 +1,81 @@
+% Gadget4 parameters: isolated MW-like galaxy, isothermal gas -- FULL RUN (10M particles, 2 Gyr)
+% Units: length 1 kpc, mass 1e10 Msun, velocity 1 km/s  =>  time unit 0.9778 Gyr
+
+%---- Files
+InitCondFile        ./ics            % Gadget4 appends .hdf5 (ICFormat 3)
+OutputDir           ./output
+SnapshotFileBase    snapshot
+OutputListFilename  empty.txt        % unused (OutputListOn 0)
+
+%---- File formats
+ICFormat            3                % HDF5 (what InkWell writes)
+SnapFormat          3                % HDF5 snapshots (read directly by pynbody)
+
+%---- CPU-time limits (seconds)
+TimeLimitCPU             597600      % a bit below the Slurm --time, so restart files are written
+CpuTimeBetRestartFile    7200        % also write restart files every 2 h
+
+%---- Memory per MPI rank (MB)
+MaxMemSize          6000
+
+%---- Duration
+TimeBegin           0.0
+TimeMax             2.045408           % 2.0 Gyr
+
+%---- Non-cosmological, isolated (non-periodic) run
+ComovingIntegrationOn    0
+Omega0                   0
+OmegaLambda              0
+OmegaBaryon              0
+HubbleParam              1.0
+Hubble                   0
+BoxSize                  0
+
+%---- Outputs
+OutputListOn             0
+TimeBetSnapshot          0.2045408    % 200 Myr -> 11 snapshots, ~4 GB at 10M particles
+TimeOfFirstSnapshot      0.0
+TimeBetStatistics        0.0051135   % 5 Myr: energy.txt cadence
+NumFilesPerSnapshot      1
+MaxFilesWithConcurrentIO 1
+
+%---- Time integration
+ErrTolIntAccuracy        0.012
+CourantFac               0.15
+MaxSizeTimestep          0.005       % ~5 Myr
+MinSizeTimestep          0.0
+
+%---- Tree gravity and domain decomposition
+TypeOfOpeningCriterion            1
+ErrTolTheta                       0.5
+ErrTolThetaMax                    0.9
+ErrTolForceAcc                    0.005
+TopNodeFactor                     2.5
+ActivePartFracForNewDomainDecomp  0.01
+
+%---- SPH
+DesNumNgb               64
+MaxNumNgbDeviation      1
+ArtBulkViscConst        1.0
+MinEgySpec              0
+InitGasTemp             0            % 0 = keep the u = c_s^2 from the ICs
+
+%---- Units
+UnitLength_in_cm         3.085678e21  % 1 kpc
+UnitMass_in_g            1.989e43     % 1e10 Msun
+UnitVelocity_in_cm_per_s 1e5          % 1 km/s
+GravityConstantInternal  0
+
+%---- Gravitational softening (Plummer-equivalent, kpc)
+SofteningComovingClass0      0.05   % gas
+SofteningComovingClass1      0.15   % DM halo
+SofteningComovingClass2      0.05   % stars (disk + bulge)
+SofteningMaxPhysClass0       0.05
+SofteningMaxPhysClass1       0.15
+SofteningMaxPhysClass2       0.05
+SofteningClassOfPartType0    0
+SofteningClassOfPartType1    1
+SofteningClassOfPartType2    2
+SofteningClassOfPartType3    2
+SofteningClassOfPartType4    2       % unused
+SofteningClassOfPartType5    2       % unused
