@@ -47,16 +47,23 @@ Why this split:
 * **60% of the particles go to the halo.** This keeps the halo's discreteness noise low in the
   region the disk lives in.
 
-### Two InkWell conventions to know
+### Three InkWell conventions to know
 
-1. **`omega_b: 0`.** InkWell treats `virial_mass` as the *total* (DM + baryons) mass. It normalises
-   the NFW halo to (1 − Ω_b/Ω_m) M_vir. Setting `omega_b: 0` makes `virial_mass` the DM halo mass,
-   which is what we want for an isolated galaxy whose baryons are specified explicitly.
+1. **`halo.baryon_fraction`.** `virial_mass` is the total halo mass that sets r_vir and the NFW
+   normalisation. By default InkWell removes a cosmic baryon share Ω_b/Ω_m (16% for Planck) from
+   the live DM halo and does not add it back. We set `baryon_fraction: 0.0`, so the live halo
+   carries the full M_vir; our baryons are the components we specify explicitly.
 2. **The halo is tapered at r_vir.** The density is multiplied by exp(−(r/r_vir)²), so the live
-   halo contains ~0.81 M_vir = 8.1e11 Msun. The inner profile is the untruncated NFW.
+   halo contains ~0.81 M_vir = 8.1e11 Msun. The inner profile is the untruncated NFW. InkWell
+   prints the result: `Live DM halo mass < rcut = 8.1498e+11 Msun = 0.815 Mvir`.
+3. **Every component is recentred.** Random sampling leaves each component's centre of mass and
+   bulk velocity slightly off zero (about 0.2 kpc and a few km/s at 100k particles). InkWell
+   shifts each one to zero (`assembly.recentre`, on by default).
 
-The first test ICs used Planck's Ω_b = 0.049. With that value the halo held only 6.8e11 Msun and
-v_c(8 kpc) was 206 km/s. With `omega_b: 0` it is 214 km/s.
+With the default baryon fraction, the halo would hold only 6.8e11 Msun and v_c(8 kpc) would drop
+from 210 to 204 km/s.
+
+These conventions need InkWell ≥ `4ab25f8`, the commit pinned in `env/versions.env`.
 
 ## 2. The configuration files
 
@@ -67,8 +74,11 @@ Key parts, annotated:
 
 ```yaml
 dynamics: agama            # DF-based equilibrium; 'jeans' is the legacy (less stable) method
+cosmology:
+  omega_b: 0.0493          # Planck; only used for the default baryon fraction
 halo:
   type: nfw
+  baryon_fraction: 0.0     # live halo = full M_vir (before the r_vir taper)
   virial_mass: 1.0e+12
   concentration: 10.0
   truncation: 1.0          # taper radius r_t = 1 x r_vir
@@ -104,7 +114,7 @@ sbatch run_ics.sbatch inkwell_mw_gas.yaml mw_gas
 `run_ics.sbatch` runs
 
 ```bash
-inkwell inkwell_mw_gas.yaml --format gadget4 -o $NBODY_RUNS/ics/mw_gas --seed 42
+inkwell inkwell_mw_gas.yaml --format gadget4 --gadget-eos isothermal -o $NBODY_RUNS/ics/mw_gas --seed 42
 python check_ics.py $NBODY_RUNS/ics/mw_gas/ic_gadget.hdf5 --plot $NBODY_RUNS/ics/mw_gas/ics_check.png
 ```
 
@@ -140,14 +150,16 @@ InkWell's units in this file are kpc, km/s, and 1e10 Msun. Gas carries `Internal
 import h5py
 f = h5py.File("ic_gadget.hdf5")
 print(dict(f["Header"].attrs))           # NumPart_Total = [333333, 6000000, 3000000, 666667, 0, 0]
-print(f["PartType0/InternalEnergy"][:5])  # 206.5 (km/s)^2 for 1e4 K
+print(f["PartType0/InternalEnergy"][:5])  # 137.6 (km/s)^2 = c_s^2 for 1e4 K (isothermal convention)
+print(f["Header"].attrs["InkWellInternalEnergy"])  # 'cs2 (ISOTHERM_EQS)'
 ```
 
-> **Isothermal gas caveat.** InkWell writes u = P/((γ−1)ρ) = 1.5 c_s². Our Gadget4 build uses
-> `ISOTHERM_EQS`, which reads u as c_s² and uses P = ρu. Without a correction the gas would start
-> with 1.5× too much pressure. The Slurm run scripts therefore copy the ICs through
-> `fix_isothermal_u.py`, which multiplies u by 2/3 and marks the file so the conversion cannot
-> happen twice. If you build Gadget4 with standard adiabatic SPH instead, skip this step.
+> **Match `--gadget-eos` to your Gadget4 build.** Our build uses `ISOTHERM_EQS`, which reads
+> `InternalEnergy` as c_s² and uses P = ρu. `--gadget-eos isothermal` writes exactly that
+> (u = c_s²) and records it in the header attribute `InkWellInternalEnergy`. The default,
+> `--gadget-eos adiabatic`, writes u = P/((γ−1)ρ) = 1.5 c_s², which is right for standard SPH and
+> for `COOLING` builds but would give an `ISOTHERM_EQS` run 1.5× too much gas pressure. The run
+> scripts refuse ICs whose header does not say `cs2`.
 
 ## 4. Sanity checks (`check_ics.py`)
 
@@ -167,14 +179,14 @@ python check_ics.py $NBODY_RUNS/ics/mw_gas_test/ic_gadget.hdf5 --softening 0.2
 Results for the test ICs:
 
 ```
-v_c(R = 8 kpc) = 214.0 km/s;  v_c in 5-20 kpc: 200-217 km/s
+v_c(R = 8 kpc) = 209.5 km/s;  v_c in 5-20 kpc: 201-213 km/s
 PASS: MW-like, roughly flat rotation curve
 Stellar disk:  R [kpc]  v_phi  sigma_R  sigma_z   Q
-                 3.5   154.1    82.8    48.1   2.08
-                 5.5   172.9    62.6    36.3   1.88
-                 7.5   185.9    48.8    27.0   2.05
-                11.5   199.3    26.2    14.9   2.35
-PASS: Toomre Q(2 R_d) = 1.88 (target ~2)
+                 3.5   154.1    82.8    48.1   2.09
+                 5.5   172.9    62.6    36.3   1.92
+                 7.5   185.9    48.8    27.0   2.00
+                11.5   199.3    26.2    14.9   2.32
+PASS: Toomre Q(2 R_d) = 1.92 (target ~2)
 ```
 
 ![IC diagnostics](img/ics_check_test.png)

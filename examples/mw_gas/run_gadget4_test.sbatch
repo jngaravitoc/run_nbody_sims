@@ -20,7 +20,14 @@ cp "$PARAM" "$RUN/param.txt"
 cp Config.sh "$RUN/"
 cp "$NBODY_RUNS/builds/gadget4_mw_gas/Gadget4" "$RUN/"
 touch "$RUN/empty.txt"
-[ -f "$RUN/ics.hdf5" ] || python fix_isothermal_u.py "$NBODY_RUNS/ics/$NAME/ic_gadget.hdf5" "$RUN/ics.hdf5"
+python - "$NBODY_RUNS/ics/$NAME/ic_gadget.hdf5" <<'PY'
+import sys, h5py
+conv = h5py.File(sys.argv[1], "r")["Header"].attrs.get("InkWellInternalEnergy", b"")
+conv = conv.decode() if isinstance(conv, bytes) else str(conv)
+if not conv.startswith("cs2"):
+    sys.exit(f"{sys.argv[1]}: InternalEnergy is {conv!r}; regenerate with --gadget-eos isothermal (run_ics.sbatch)")
+PY
+[ -f "$RUN/ics.hdf5" ] || cp "$NBODY_RUNS/ics/$NAME/ic_gadget.hdf5" "$RUN/ics.hdf5"
 
 cd "$RUN"
 FLAG=""

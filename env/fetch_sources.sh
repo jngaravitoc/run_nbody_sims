@@ -11,7 +11,11 @@ mkdir -p "$SRC"
 
 clone_at() {   # clone_at <name> <commit>
     local name=$1 commit=$2
-    [ -d "$SRC/$name" ] || git clone --quiet "$CODES_DIR/$name" "$SRC/$name"
+    if [ -d "$SRC/$name" ]; then
+        git -C "$SRC/$name" fetch --quiet origin   # pick up commits pulled into $CODES_DIR since the clone
+    else
+        git clone --quiet "$CODES_DIR/$name" "$SRC/$name"
+    fi
     git -C "$SRC/$name" checkout --quiet --force "$commit"
     echo "$name @ $(git -C "$SRC/$name" rev-parse --short HEAD)"
 }

@@ -60,12 +60,14 @@ examples/mw_gas/
   inkwell_mw_gas.yaml         ICs, 10M particles
   inkwell_mw_gas_test.yaml    ICs, 100k particles (same model)
   check_ics.py                IC/snapshot sanity checks (masses, v_c, Q, dispersions)
-  fix_isothermal_u.py         InkWell u -> c_s^2 for Gadget4 ISOTHERM_EQS
+  check_inkwell_ic.py         InkWell file checks: units, pynbody, u convention, recentring
+  relax_diag.py               per-snapshot thickness, centring, Σ, R_d, A2 for relaxation studies
+  param_relax.txt             Gadget4 parameters for the 300 Myr relaxation test
   Config.sh                   Gadget4 compile-time options
   param.txt, param_test.txt   Gadget4 runtime parameters
   build_gadget4.sh            out-of-tree Gadget4 build
   run_ics.sbatch              Slurm: InkWell on a compute node
-  run_gadget4*.sbatch         Slurm: Gadget4 (restart-aware)
+  run_gadget4*.sbatch         Slurm: Gadget4 (restart-aware; test, full and relaxation runs)
 notebooks/
   mw_gas_analysis.ipynb       analysis notebook
   mwtools.py                  loading helpers (time, components, centring)
@@ -79,7 +81,7 @@ tutorials/                    the four tutorials
 |---|---|
 | Modules | `openmpi/4.1.5/gnu`, `gsl-1.16`, `hdf5/1.14.3/serial/gnu`, `python-3.11.4` (GCC 8.5.0) |
 | Gadget4 | `6fb393b5` |
-| InkWell | `8c765a68` |
+| InkWell | `4ab25f8a` (the 2 Gyr run below used `8c765a68`; see note) |
 | Agama | `60d8d8b8` + `env/patches/agama_static_libpython.patch` (1.0.160) |
 | pynbody | `2c9e0a33` (2.8.0 dev) |
 | Python packages | numpy 2.4.6, scipy 1.17.1, h5py 3.16.0, pytreegrav 1.4.0, matplotlib 3.11.2 |
@@ -106,6 +108,12 @@ Toomre Q(2R_d) = 1.9.
 | Disk | axisymmetric; Σ(R) stable to ≲ 8%; mild thickening, as expected at this resolution |
 
 ### Full run (10M particles, 2 Gyr)
+
+> This run was made with InkWell `8c765a6`, before the fixes that came out of our compatibility
+> report. It used `omega_b: 0` instead of `halo.baryon_fraction: 0` and converted the gas energies
+> with a script instead of `--gadget-eos isothermal`. The physics is the same: the new InkWell
+> produces the same particle samples, shifted so each component is centred (see
+> `reports/inkwell_gadget4_retest.md`).
 
 | | |
 |---|---|
