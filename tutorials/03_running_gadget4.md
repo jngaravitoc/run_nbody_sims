@@ -12,7 +12,7 @@ All files are in `examples/mw_gas/`:
 | `Config.sh` | compile-time options, which require recompiling to change |
 | `param_test.txt`, `param.txt` | runtime parameters for the test and full runs |
 | `run_gadget4_test.sbatch`, `run_gadget4.sbatch` | Slurm job scripts |
-| `fix_isothermal_u.py` | converts the IC gas energies for `ISOTHERM_EQS` (see tutorial 02) |
+| `param_relax.txt`, `run_gadget4_relax.sbatch` | 300 Myr relaxation test with a snapshot every 25 Myr |
 
 ## 1. Compile-time options (`Config.sh`)
 
@@ -34,7 +34,7 @@ Notes:
   temperature of a turbulent, photo-heated warm ISM.
 * **Adding star formation.** That would need `COOLING` and `STARFORMATION` (see
   `~/codes/gadget4/examples/CollidingGalaxiesSFR`), a `TREECOOL` file, and the star-formation
-  parameters. Drop `ISOTHERM_EQS` and `fix_isothermal_u.py` in that case.
+  parameters. Drop `ISOTHERM_EQS` and generate the ICs with `--gadget-eos adiabatic` (the default) in that case.
 * All options are documented in `~/codes/gadget4/documentation/04_config-options.md`.
 
 ## 2. Runtime parameters (`param.txt`)
@@ -94,7 +94,8 @@ The full list of parameters is in `~/codes/gadget4/documentation/05_parameterfil
 source ../../env/modules.sh                     # same modules as for compiling
 RUN=$NBODY_RUNS/runs/mw_gas
 cp param.txt Config.sh $NBODY_RUNS/builds/gadget4_mw_gas/Gadget4 $RUN/   # run dir is self-documenting
-[ -f $RUN/ics.hdf5 ] || python fix_isothermal_u.py $NBODY_RUNS/ics/mw_gas/ic_gadget.hdf5 $RUN/ics.hdf5
+# (a check that the ICs were made with --gadget-eos isothermal: header InkWellInternalEnergy = 'cs2 ...')
+[ -f $RUN/ics.hdf5 ] || cp $NBODY_RUNS/ics/mw_gas/ic_gadget.hdf5 $RUN/ics.hdf5
 cd $RUN
 FLAG=""; [ -d output/restartfiles ] && FLAG=1    # continue from restart files if they exist
 mpirun -np $SLURM_NTASKS ./Gadget4 param.txt $FLAG

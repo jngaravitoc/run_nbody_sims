@@ -83,7 +83,7 @@ def main():
 
     # --- circular velocity in the midplane from the actual particle distribution
     Rgrid = np.linspace(0.5, args.rmax, 50)
-    phis = np.linspace(0, 2 * np.pi, 8, endpoint=False)
+    phis = np.linspace(0, 2 * np.pi, 64, endpoint=False)  # many azimuths: a 1e5-particle halo is lumpy on a ring
     tgt = np.array([[R * np.cos(p), R * np.sin(p), 0.0] for R in Rgrid for p in phis]) + c0
     vc_comp = {}
     for t, d in sorted(parts.items()):

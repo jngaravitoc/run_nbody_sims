@@ -37,9 +37,11 @@ InkWell (ICs) → Gadget4 (MPI, Slurm) → pynbody (analysis). Current work and 
   `LIBRARY_PATH`. Script: `examples/mw_gas/build_gadget4.sh`, run via `srun -p debug`.
 - **`NTYPES` must be 6** to read InkWell ICs, which always have 6-element `NumPart` arrays.
 - Units: kpc, 1e10 Msun, km/s, so the time unit is **0.977792 Gyr**.
-- `ISOTHERM_EQS` reads IC `InternalEnergy` as c_s² (P = ρu). InkWell writes 1.5 c_s², so ICs
-  go through `examples/mw_gas/fix_isothermal_u.py` (×2/3). Never use this with adiabatic or
-  cooling builds.
+- `ISOTHERM_EQS` reads IC `InternalEnergy` as c_s² (P = ρu). Generate ICs for it with
+  `inkwell --gadget-eos isothermal` (InkWell ≥ 4ab25f8; header `InkWellInternalEnergy` =
+  'cs2 (ISOTHERM_EQS)'). Adiabatic and `COOLING` builds need the default `--gadget-eos adiabatic`.
+  The run scripts refuse ICs without the `cs2` attribute. (`fix_isothermal_u.py` is gone; the
+  existing 2 Gyr `mw_gas` run used it with InkWell 8c765a6.)
 - Run scripts copy the binary, `Config.sh`, `param.txt` and the converted ICs into
   `$NBODY_RUNS/runs/<name>`. They restart automatically if `output/restartfiles` exists; a
   restart needs the same number of MPI ranks.
@@ -51,8 +53,11 @@ InkWell (ICs) → Gadget4 (MPI, Slurm) → pynbody (analysis). Current work and 
 - `inkwell cfg.yaml --format gadget4 -o dir` writes `ic_gadget.hdf5`. PartTypes are
   0 gas, 1 DM, 2 stellar disk, 3 bulge. IDs are consecutive by type starting at 1, and Gadget4
   keeps them; this is how `s['comp']` is derived.
-- **`omega_b` must be 0.** Otherwise the NFW halo is normalised to (1 − Ω_b/Ω_m) M_vir. The
-  halo is also tapered at r_vir, so the live halo is ~0.81 M_vir (8.1e11 for M_vir = 1e12).
+- **Set `halo.baryon_fraction: 0.0`.** Its default, Ω_b/Ω_m, removes 16% of M_vir from the live
+  halo. The halo is also tapered at r_vir, so the live halo is ~0.815 M_vir (8.15e11 for
+  M_vir = 1e12); the log prints it. Keep Planck `omega_b` in the YAML.
+- InkWell ≥ 8276263 recentres every component (`assembly.recentre`). At 100k particles the halo's
+  density cusp still sits ~0.2 kpc from its mass centre, so disks wander ~0.4 kpc anyway.
 - 100k ICs take ~9 min and 10M ICs ~9.5 min on 64 cores, dominated by the Agama grids.
 - **Compatibility issues are documented in `reports/inkwell_gadget4_compatibility.md`.** Check
   there before assuming new behaviour is a bug.
@@ -64,12 +69,17 @@ InkWell (ICs) → Gadget4 (MPI, Slurm) → pynbody (analysis). Current work and 
   report ~9.8 Gyr for t = 0), adds `comp`, and centres the snapshot face-on.
 - pynbody 2.x API names: `faceon(s, disk_size=...)` and `sph.image(..., axes=ax)`. The profile
   key is `vphi`, not `v_phi`.
-- **Raw InkWell ICs are misread by pynbody** (mass ×1/h, length ×1000/h) because the file has no
-  units. Use h5py or `check_ics.py` for ICs.
+- InkWell ≥ 4ab25f8 ICs carry units (`Parameters` group, h = 1) and pynbody reads them exactly.
+  Older InkWell ICs are misread (mass ×1/h, length ×1000/h); use h5py for those.
+- `examples/mw_gas/check_inkwell_ic.py` checks an InkWell IC's metadata, pynbody unit factors,
+  u convention and recentring.
 - The warning "Unable to infer units from HDF attributes" on Gadget4 snapshots is harmless.
 
 ## Checks
 - `examples/mw_gas/check_ics.py <file.hdf5> [--softening ε]` works on ICs and snapshots: masses,
-  COM, v_c by component (pytreegrav), σ_R, σ_z, Toomre Q.
+  COM, v_c by component (pytreegrav, averaged over 64 azimuths; 8 gave ±4% noise at 100k), σ_R,
+  σ_z, Toomre Q.
+- `examples/mw_gas/relax_diag.py <run/output> ...` gives per-snapshot z_rms about each
+  component's own centre, centre separations, Σ, fitted R_d and A₂.
 - Run the notebook headless:
   `cd notebooks && MW_RUN=<run> jupyter nbconvert --to notebook --execute mw_gas_analysis.ipynb --output <out>.ipynb`.

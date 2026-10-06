@@ -1,6 +1,6 @@
 # Status and restart checklist
 
-Last updated: 2026-10-05.
+Last updated: 2026-10-06.
 
 ## Done
 - **Full run `mw_gas` is complete.** Slurm job 12037 ran 2026-10-02 from 13:50 to 21:34
@@ -26,26 +26,41 @@ All acceptance criteria are met: codes compile from documented modules; ICs pass
 the test disk is stable; the 2 Gyr run completed; the notebook produces maps, rotation curve,
 Σ(R) profiles and masses vs time.
 
+## InkWell 4ab25f8 re-test (2026-10-06)
+The developer fixed the issues from our first report; their response is the source of the
+current re-test. Summary in `reports/inkwell_gadget4_retest.md`, published privately at
+https://claude.ai/artifact/3MeXSgJanVW5trGAu1T66w (not yet shared with Jason Hunt).
+- Six of seven fixes verified. `forceDeriv` still fires on Agama 1.0.160. Fix:
+  `pot.eval(xyz, acc=True, der=True)`.
+- 10M relaxation run `~/nbody_runs/runs/mw_gas_relax` (300 Myr, every 25 Myr, 5.1 GB). The gas
+  does not collapse at full resolution. The stellar disk breathes radially for ~200 Myr (inner Σ
+  −13% then settles −8%, R_d +6%). This is reported to the developer as a likely DF-vs-potential
+  mismatch.
+- The tutorials now use InkWell 4ab25f8: `halo.baryon_fraction: 0`, `--gadget-eos isothermal`;
+  `fix_isothermal_u.py` was removed.
+- Old 100k data is kept as `~/nbody_runs/{ics,runs}/mw_gas_test_8c765a6`. The 2 Gyr `mw_gas` run
+  is still from 8c765a6; that is noted in the README.
+- Test data: `~/nbody_runs/retest/` (3 IC variants, 100k runs, merge test, diagnostics).
+
 ## Open decisions and follow-ups
-- **InkWell report.** `reports/inkwell_gadget4_compatibility.md` is also published, privately, at
-  https://claude.ai/artifact/F3rzjRr65iX3Vkvuema7bS. It has not been sent to Jason Hunt (InkWell
-  developer) yet, and there are no GitHub issues on JASHunt/InkWell yet. Decide whether to share
-  the page or open issues.
+- **Send the re-test.** Share `reports/inkwell_gadget4_retest.md` or its page with Jason Hunt.
+  Open items for him: the `forceDeriv` call, antithetic spheroid sampling, a per-disk μ for
+  `COOLING` runs (we prefer option a), and the two tests for the stellar breathing.
 - **Snapshot cadence.** 200 Myr was chosen to stay under ~5 GB. If finer time sampling of the
   maps or profiles is needed, rerun with `TimeBetSnapshot 0.0511352` (50 Myr, ~15 GB). Mass vs
   time already has 5 Myr resolution from `energy.txt`.
-- **Initial relaxation.** The full run adjusts once in the first 200 Myr (inner stellar Σ −9%,
-  gas z_rms −7%), then stays steady. It is reported to InkWell as a possible CylSpline effect.
-  A short rerun with frequent snapshots (e.g. 10 Myr for 300 Myr, ~11 GB at 10M; less at 1M)
-  would resolve when it happens.
+- **Initial relaxation.** Resolved by the 10M relaxation run: a damped ~125 Myr radial breathing
+  of the stellar disk, settled by 200 Myr. Until InkWell addresses it, discard the first ~200 Myr
+  in analyses of early evolution.
 - **Push / PR.** Everything is committed on branch `tutorials/mw-gas` (not pushed). Push it and
   open a PR to `main` on github.com/jngaravitoc/run_nbody_sims when ready.
 - **Star formation.** A `COOLING` + `STARFORMATION` example is a natural tutorial 05. The build
   has been tested to read InkWell ICs: config and params in `~/nbody_runs/compat/sfr/`.
   It needs the unconverted IC u, and a decision on μ (see report issue 5).
-- **Cleanup.** `~/nbody_runs/compat/` (250 MB, compatibility tests) and
-  `~/nbody_runs/ics/mw_gas_test_v1/` (superseded Ω_b ≠ 0 ICs) can be deleted once the report
-  is settled.
+- **Cleanup.** Once the re-test is settled, these can be deleted: `~/nbody_runs/compat/`
+  (250 MB), `~/nbody_runs/retest/` (test runs), `~/nbody_runs/ics/mw_gas_test_v1/` and
+  `mw_gas_test_8c765a6` (superseded ICs), and `~/nbody_runs/ics/mw_gas_iso` (0.7 GB, 10M ICs for
+  the relaxation run).
 
 ## Where things are
 | What | Where |

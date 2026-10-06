@@ -9,13 +9,14 @@ cosmology:                 # defines r_vir (Planck 2018, z = 0)
   omega_m: 0.315
   hubble: 0.674
   redshift: 0.0
-  omega_b: 0.0             # 0 => virial_mass is the DM halo mass. With omega_b > 0 InkWell
-                           # scales the NFW down by (1 - omega_b/omega_m) = 0.84
+  omega_b: 0.0493
 
 
 halo:                      # NFW, M_vir = 1e12 Msun, c = 10 (Dutton & Maccio 2014)
   n_particles: 60000
   type: nfw
+  baryon_fraction: 0.0     # live DM halo carries the full M_vir (default omega_b/omega_m = 0.16
+                           # would remove 16%); the r_vir taper keeps ~0.81 of it: 8.1e11 Msun live
   virial_mass: 1.0e+12
   concentration: 10.0
   truncation: 1.0          # r_t = r_vir
