@@ -85,7 +85,8 @@ InkWell (ICs) → Gadget4 (MPI, Slurm) → pynbody (analysis). Current work and 
 - InkWell ≥ 4ab25f8 ICs carry units (`Parameters` group, h = 1) and pynbody reads them exactly.
   Older InkWell ICs are misread (mass ×1/h, length ×1000/h); use h5py for those.
 - `examples/mw_gas/check_inkwell_ic.py` checks an InkWell IC's metadata, pynbody unit factors,
-  u convention and recentring.
+  u convention, recentring and mirrored halo/bulge pairs; it exits 1 on any failure. Pass
+  `--no-antithetic` for ICs made with `assembly.antithetic: false` or InkWell < 3e5907e.
 - The warning "Unable to infer units from HDF attributes" on Gadget4 snapshots is harmless.
 
 ## Checks

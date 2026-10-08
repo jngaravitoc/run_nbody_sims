@@ -10,7 +10,8 @@ Checks:
     (working directory outside the repo) and once with notebooks/config.ini
   * the InternalEnergy convention attribute, and the u ratio against another IC (--compare-u)
   * each component's mass-weighted centre of mass and mean velocity (InkWell now recentres them)
-  * antithetic (mirrored) sampling of the DM halo and bulge
+  * antithetic (mirrored) sampling of the DM halo and bulge; this fails unless --no-antithetic is
+    given, for ICs made with assembly.antithetic: false or InkWell older than 3e5907e
 """
 import argparse
 import json
@@ -74,6 +75,9 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("file")
     ap.add_argument("--compare-u", help="another IC of the same model: compare gas u and positions")
+    ap.add_argument("--no-antithetic", dest="antithetic", action="store_false",
+                    help="the ICs were made without mirrored spheroid sampling (assembly.antithetic: false, "
+                         "or InkWell < 3e5907e): report the pair check but do not fail on it")
     ap.add_argument("--pynbody-only", action="store_true", help=argparse.SUPPRESS)
     args = ap.parse_args()
 
@@ -136,12 +140,18 @@ def main():
             n = len(x)
             h = n // 2
             if n % 2:
-                print(f"  info  {name}: N = {n} is odd, so not antithetic")
-                continue
-            dx = np.abs(x[:h] + x[h:]).max()
-            dv = np.abs(v[:h] + v[h:]).max()
-            print(f"  info  {name}: N = {n}, max |x_i + x_(i+N/2)| = {dx:.1e} kpc, max |v_i + v_(i+N/2)| = {dv:.1e} km/s"
-                  + ("  -> mirrored pairs" if dx < 1e-9 and dv < 1e-9 else "  -> not mirrored"))
+                ok, detail = False, f"N = {n} is odd, so not antithetic"
+            else:
+                dx = np.abs(x[:h] + x[h:]).max()
+                dv = np.abs(v[:h] + v[h:]).max()
+                ok = dx < 1e-9 and dv < 1e-9
+                detail = (f"N = {n}, max |x_i + x_(i+N/2)| = {dx:.1e} kpc, max |v_i + v_(i+N/2)| = {dv:.1e} km/s"
+                          + ("  -> mirrored pairs" if ok else "  -> not mirrored"))
+            if args.antithetic:
+                fails += not ok
+                print(f"  {status(ok)}  {name}: {detail}")
+            else:
+                print(f"  info  {name}: {detail} (not required: --no-antithetic)")
 
     print("\n[1b] pynbody unit factors (pynbody value / raw value; 1 = correct)")
     with tempfile.TemporaryDirectory() as tmp:
