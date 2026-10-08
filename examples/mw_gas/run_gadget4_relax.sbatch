@@ -10,9 +10,9 @@
 # Relaxation test: 10M particles, 300 Myr, a snapshot every 25 Myr, to resolve the
 # initial adjustment of the disk. Needs ICs made with InkWell >= 4ab25f8 and
 # --gadget-eos isothermal (u = c_s^2 for ISOTHERM_EQS). Submit from examples/mw_gas/:
-#   sbatch run_gadget4_relax.sbatch [ICS_DIR]
+#   sbatch run_gadget4_relax.sbatch [ICS_DIR] [RUN_NAME]
 set -euo pipefail
-NAME=mw_gas_relax
+NAME=${2:-mw_gas_relax}
 PARAM=param_relax.txt
 cd "$SLURM_SUBMIT_DIR"
 source ../../env/modules.sh

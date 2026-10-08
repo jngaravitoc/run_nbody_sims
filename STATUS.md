@@ -1,6 +1,6 @@
 # Status and restart checklist
 
-Last updated: 2026-10-06.
+Last updated: 2026-10-08.
 
 ## Done
 - **Full run `mw_gas` is complete.** Slurm job 12037 ran 2026-10-02 from 13:50 to 21:34
@@ -42,21 +42,43 @@ https://claude.ai/artifact/3MeXSgJanVW5trGAu1T66w (not yet shared with Jason Hun
   is still from 8c765a6; that is noted in the README.
 - Test data: `~/nbody_runs/retest/` (3 IC variants, 100k runs, merge test, diagnostics).
 
+## InkWell 1ba0858 re-test (2026-10-08)
+The developer's second response (InkWell `3e5907e`, tested as `main` @ `1ba0858`) is verified in
+`reports/inkwell_gadget4_retest2.md`, published privately at
+https://claude.ai/artifact/YNrCzZjzyU6T2vJFEGqbQn (not yet shared with Jason Hunt).
+- All four requests pass. `forceDeriv` is gone; the disk ratio is 0.992–1.004 at 10M;
+  `mean_molecular_weight: 1.22` removes the cooling transient; merge provenance is fixed.
+- **The breathing mode is gone:** a 10M relaxation run with the new ICs
+  (`~/nbody_runs/runs/mw_gas_relax_1ba0858`, 5.1 GB) keeps |⟨v_R⟩| ≤ 0.7 km/s (old: 9 km/s).
+- Minor items reported: the log's live-halo mass is 0.68% high, particle counts round up
+  (100,001 / 10,000,001), the checker's 50 pc softening is too small at 100k, and generation is
+  ~1.7× slower.
+- Tutorials adopted `1ba0858`:
+  - `make_ics.py` and a new `run_ics.sbatch` write both formats and run the disk-equilibrium
+    check;
+  - notebook section 7 measures the breathing;
+  - `run_gadget4_relax.sbatch` takes a run name.
+- The end-to-end 100k chain with `1ba0858` passed: `~/nbody_runs/{ics,runs}/mw_gas_test`.
+- Superseded data: `{ics,runs}/mw_gas_test_4ab25f8`, `retest2/` (variants P/D0/M, P10M ICs with
+  `ic.hdf5`, 1.8 GB).
+
 ## Open decisions and follow-ups
-- **Send the re-test.** Share `reports/inkwell_gadget4_retest.md` or its page with Jason Hunt.
-  Open items for him: the `forceDeriv` call, antithetic spheroid sampling, a per-disk μ for
-  `COOLING` runs (we prefer option a), and the two tests for the stellar breathing.
+- **Send the second re-test.** Share `reports/inkwell_gadget4_retest2.md` or its page with
+  Jason Hunt. No blocking items remain; only the minor notes are open.
+- **Production run.** The 2 Gyr `mw_gas` run still uses InkWell `8c765a6` ICs, with the old
+  breathing in its first 200 Myr. Re-running it with `1ba0858` (~17 min ICs + ~8 h, ~4 GB) would
+  make the tutorial's flagship run consistent with the current code.
 - **Snapshot cadence.** 200 Myr was chosen to stay under ~5 GB. If finer time sampling of the
   maps or profiles is needed, rerun with `TimeBetSnapshot 0.0511352` (50 Myr, ~15 GB). Mass vs
   time already has 5 Myr resolution from `energy.txt`.
-- **Initial relaxation.** Resolved by the 10M relaxation run: a damped ~125 Myr radial breathing
-  of the stellar disk, settled by 200 Myr. Until InkWell addresses it, discard the first ~200 Myr
-  in analyses of early evolution.
-- **Push / PR.** Everything is committed on branch `tutorials/mw-gas` (not pushed). Push it and
-  open a PR to `main` on github.com/jngaravitoc/run_nbody_sims when ready.
+- **Initial relaxation.** Fixed in InkWell ≥ 3e5907e (disc iterations). Only the old 2 Gyr run
+  is affected; discard its first ~200 Myr.
+- **Push / PR.** `tutorials/mw-gas` has new commits since PR #1. This session cannot
+  authenticate to GitHub, so push from the VS Code terminal and open a PR.
 - **Star formation.** A `COOLING` + `STARFORMATION` example is a natural tutorial 05. The build
   has been tested to read InkWell ICs: config and params in `~/nbody_runs/compat/sfr/`.
-  It needs the unconverted IC u, and a decision on μ (see report issue 5).
+  Use `--gadget-eos adiabatic` and `mean_molecular_weight: 1.22` on the gas disk (tested in
+  `~/nbody_runs/retest2/runs/sfr_M`).
 - **Cleanup.** Once the re-test is settled, these can be deleted: `~/nbody_runs/compat/`
   (250 MB), `~/nbody_runs/retest/` (test runs), `~/nbody_runs/ics/mw_gas_test_v1/` and
   `mw_gas_test_8c765a6` (superseded ICs), and `~/nbody_runs/ics/mw_gas_iso` (0.7 GB, 10M ICs for
