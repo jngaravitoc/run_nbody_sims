@@ -88,6 +88,7 @@ stars' angular momentum onto +z. `mwtools.load()` calls it unless `center=False`
 | Surface-density profiles | `Profile(sub, ndim=2)["density"]` | With `ndim=2`, density is per unit area. Fit log Σ vs R for R_d. |
 | Gas and stellar mass vs time | `output/energy.txt` (last `NTYPES` columns), cross-checked with snapshot sums | Every 5 Myr instead of every snapshot. |
 | Disk stability | A₂ = \|Σ m e^{2iφ}\| / Σ m in R < 6 kpc; z_rms at 7–9 kpc | A₂ > 0.2 means a bar. Growing z_rms means heating. |
+| Equilibrium of the ICs (section 7) | `d["vrxy"]`, `d["vcxy"]`, `d["rxy"]`: mean cylindrical radial and rotation velocity in rings vs time | A coherent ⟨v_R⟩ of several km/s means the disk "breathes"; an equilibrium disk stays at ±σ_R/√N. |
 
 ### Why the masses are constant
 
@@ -99,18 +100,23 @@ notebook would show gas consumption and stellar mass growth.
 
 ## 4. Results
 
-### Test run (100k particles, 500 Myr)
+### Test run (100k particles, 500 Myr, InkWell `1ba0858`)
 
-* Total energy drift 1.8×10⁻⁴; gas and stellar mass changes are exactly 0.
-* Rotation curve: total v_c ≈ 205 km/s at 8 kpc and flat to 30 kpc, unchanged after 500 Myr.
-  Gas ⟨v_φ⟩ follows v_c; stars lag by ~25 km/s at 5 kpc.
-* No bar: A₂ ≤ 0.05.
-* The stellar R_d grows from 3.0 to 3.4 kpc, and the disk thickens ~12% at 8 kpc. Both come from
-  the deliberately coarse resolution (1.1e7 Msun DM particles, 0.23 kpc softening).
+* Total energy drift −6.0×10⁻⁴; gas and stellar mass changes are exactly 0.
+* No bar. A₂ reaches 0.105 around 320 Myr in a transient two-armed spiral episode, then drops back
+  to 0.03–0.07. This episode is seeded by particle noise: the 10M model stays at A₂ ≤ 0.004.
+* The disk stays within 0.05 kpc of the halo centre, thanks to the mirrored halo sampling.
+* The stellar disk thickens 13% at 8 kpc (z_rms 0.54 → 0.61 kpc), and the fitted R_d wanders
+  between 2.9 and 3.3 kpc. Both come from the deliberately coarse resolution (1.35e7 Msun DM
+  particles, 0.23 kpc softening).
+* Section 7 prints `max |<v_R>| ... 7.87 km/s`. At 100k particles that is noise plus the spiral
+  episode, not a sign the ICs are out of equilibrium. Judge the equilibrium with a 10M
+  relaxation run, where the same number is 0.79 km/s.
 
 ### Full run (10M particles, 2 Gyr)
 
-The notebook on the full run takes ~2.5 min on a 32-core debug node.
+The notebook on the full run takes ~2.5 min on a 32-core debug node. This run used InkWell
+`8c765a6`; the initial relaxation described below is removed by the current InkWell (next section).
 
 * **Conservation.** Energy drift is 4.9×10⁻⁴ over 2 Gyr, and gas and stellar masses are exactly
   constant, as they must be without star formation.
@@ -120,7 +126,8 @@ The notebook on the full run takes ~2.5 min on a 32-core debug node.
 * **Initial relaxation, then steady.** During the first 200 Myr a little mass moves outward:
   inner stellar Σ (2–4 kpc) drops ~9%, Σ at 7–9 kpc rises ~7%, and the fitted R_d grows from
   3.26 to 3.44 kpc. The gas disk settles from 0.216 to 0.201 kpc in z_rms. From 0.2 to 2 Gyr
-  all of these are constant to within ~1%.
+  all of these are constant to within ~1%. This was the radial breathing of a disk that was not
+  quite in equilibrium; see the next section.
 * **Gas structure.** The cold isothermal gas develops flocculent, tightly wound multi-arm
   spirals. Σ_gas(R) shows transient ring-like bumps (8 and 11 kpc at ~0.4 Gyr) that dissolve
   by 1 Gyr.
@@ -131,6 +138,26 @@ The notebook on the full run takes ~2.5 min on a 32-core debug node.
 ![Rotation curve at 0 and 2 Gyr](img/full_rotation_curve.png)
 ![Surface-density profiles](img/full_surface_density.png)
 
-The disk-only fit in the notebook gives R_d ≈ 3.3 kpc already at t = 0 for InkWell's 3.0 kpc
-disk; the fit range and the binning differ from InkWell's calibration. Compare times, not the
-absolute value.
+With InkWell `8c765a6` the notebook's disk-only fit gives R_d ≈ 3.3 kpc already at t = 0 for a
+3.0 kpc disk; with the current InkWell it gives 2.99 kpc. Compare times, not absolute values.
+
+### Relaxation runs: is the disk in equilibrium? (10M particles, 300 Myr)
+
+Section 7 of the notebook measures the mean radial velocity ⟨v_R⟩ of the stellar disk in rings.
+We ran the full-resolution model for 300 Myr with a snapshot every 25 Myr
+(`run_gadget4_relax.sbatch`), once with ICs from InkWell `4ab25f8` and once from `1ba0858`:
+
+![Stellar-disk breathing before and after](../reports/img/breathing_10M_old_vs_new.png)
+
+* **InkWell `4ab25f8`:** the whole disk expands at up to 9 km/s within 25 Myr, then oscillates
+  with a ~125 Myr period (the epicyclic period at 4–6 kpc), damping out by ~200 Myr. ⟨v_φ⟩ at
+  3–6 kpc dips 7.6%. The cause: InkWell built the disk's distribution function in a potential
+  containing the *analytic* exponential disk, while the sampled disk had ~8% less mass at 3–4 kpc.
+  The stars therefore started with too much rotation for the potential they actually felt.
+* **InkWell `1ba0858`:** with the disk iterated into the self-consistent model, |⟨v_R⟩| stays at
+  or below 0.7 km/s in every ring, and ⟨v_φ⟩ stays within 1%. The inner Σ and R_d change by less
+  than 1.5%. Thanks to the mirrored halo, the disk also stays within 4 pc of the halo centre.
+
+For the `1ba0858` run, section 7 of the notebook prints
+`max |<v_R>| over all rings and snapshots: 0.79 km/s`. Its centring differs slightly from the
+figure's (shrinking sphere instead of disk centre of mass).

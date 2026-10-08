@@ -10,6 +10,7 @@ Checks:
     (working directory outside the repo) and once with notebooks/config.ini
   * the InternalEnergy convention attribute, and the u ratio against another IC (--compare-u)
   * each component's mass-weighted centre of mass and mean velocity (InkWell now recentres them)
+  * antithetic (mirrored) sampling of the DM halo and bulge
 """
 import argparse
 import json
@@ -126,6 +127,21 @@ def main():
                 com = (m[:, None] * g["Coordinates"][:]).sum(0) / m.sum()
                 vcm = (m[:, None] * g["Velocities"][:]).sum(0) / m.sum()
                 print(f"  info  {k}: |COM| = {np.linalg.norm(com):.2e} kpc  |v_COM| = {np.linalg.norm(vcm):.2e} km/s")
+
+        print("\n[4] Antithetic spheroids (InkWell >= 3e5907e): second half = mirror (-x, -v) of the first half")
+        for k, name in [("PartType1", "DM halo"), ("PartType3", "bulge")]:
+            if k not in f:
+                continue
+            x, v = f[f"{k}/Coordinates"][:], f[f"{k}/Velocities"][:]
+            n = len(x)
+            h = n // 2
+            if n % 2:
+                print(f"  info  {name}: N = {n} is odd, so not antithetic")
+                continue
+            dx = np.abs(x[:h] + x[h:]).max()
+            dv = np.abs(v[:h] + v[h:]).max()
+            print(f"  info  {name}: N = {n}, max |x_i + x_(i+N/2)| = {dx:.1e} kpc, max |v_i + v_(i+N/2)| = {dv:.1e} km/s"
+                  + ("  -> mirrored pairs" if dx < 1e-9 and dv < 1e-9 else "  -> not mirrored"))
 
     print("\n[1b] pynbody unit factors (pynbody value / raw value; 1 = correct)")
     with tempfile.TemporaryDirectory() as tmp:

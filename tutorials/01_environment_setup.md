@@ -63,7 +63,7 @@ The codes are taken from the local checkouts in `~/codes` and **cloned** into
 | Code | Commit | Role |
 |---|---|---|
 | Gadget4 | `6fb393b` | TreePM/SPH simulation code (MPI) |
-| InkWell | `4ab25f8` | initial-condition generator |
+| InkWell | `1ba0858` | initial-condition generator |
 | Agama | `60d8d8b` (+ local patch) | distribution functions used by InkWell |
 | pynbody | `2c9e0a33` (v2.8.0 dev) | snapshot analysis |
 | Eigen | 3.4.1 (`~/codes/deps/eigen`) | linear-algebra headers for Agama |

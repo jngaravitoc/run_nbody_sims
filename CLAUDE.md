@@ -50,17 +50,30 @@ InkWell (ICs) → Gadget4 (MPI, Slurm) → pynbody (analysis). Current work and 
 - **`energy.txt` columns:** t, E_th, E_pot, E_kin, 3×NTYPES per-type energies, then NTYPES masses.
 
 ## InkWell
-- `inkwell cfg.yaml --format gadget4 -o dir` writes `ic_gadget.hdf5`. PartTypes are
+- Pinned at `1ba0858` (≥ 3e5907e: disc iterations, antithetic spheroids, per-disk μ).
+- `examples/mw_gas/make_ics.py cfg.yaml dir` generates once and writes `ic_gadget.hdf5` (Gadget-4)
+  and `ic.hdf5` (InkWell format); the `inkwell` CLI writes only one format per run. PartTypes are
   0 gas, 1 DM, 2 stellar disk, 3 bulge. IDs are consecutive by type starting at 1, and Gadget4
   keeps them; this is how `s['comp']` is derived.
 - **Set `halo.baryon_fraction: 0.0`.** Its default, Ω_b/Ω_m, removes 16% of M_vir from the live
   halo. The halo is also tapered at r_vir, so the live halo is ~0.815 M_vir (8.15e11 for
   M_vir = 1e12); the log prints it. Keep Planck `omega_b` in the YAML.
-- InkWell ≥ 8276263 recentres every component (`assembly.recentre`). At 100k particles the halo's
-  density cusp still sits ~0.2 kpc from its mass centre, so disks wander ~0.4 kpc anyway.
-- 100k ICs take ~9 min and 10M ICs ~9.5 min on 64 cores, dominated by the Agama grids.
-- **Compatibility issues are documented in `reports/inkwell_gadget4_compatibility.md`.** Check
-  there before assuming new behaviour is a bug.
+- **Antithetic spheroids** (`assembly.antithetic`, default on): the halo and bulge are N/2
+  particles plus mirrors (−x, −v); odd N rounds up (bulge 6,668; totals 100,001 / 10,000,001).
+  The disk then stays within 0.004 kpc of the halo centre at 10M (was 0.06; 0.44 at 100k).
+  The disks are recentred (`assembly.recentre`).
+- **Disc iterations** (`agama.disc_iterations`, default 2) remove the stellar-disk radial
+  breathing of older versions (≤ 0.7 km/s ⟨v_R⟩ at 10M, was 9 km/s). Never set it to 0.
+- `mean_molecular_weight` on an isothermal gas disk: use ~1.22 for 10⁴ K gas in `COOLING` runs
+  (removes the thermal transient); irrelevant for `ISOTHERM_EQS` and adiabatic runs.
+- The `Live DM halo mass` log line is 0.68% above what the halo particles carry (8.09e11).
+- 100k ICs take ~16 min and 10M ICs ~17 min on 64 cores (Agama grids and disc iterations).
+- `$NBODY_RUNS/builds/src/InkWell/scripts/check_disc_equilibrium.py <dir> --softening ε` needs
+  `ic.hdf5` + `agama_potential.ini`; the disk ratio should be 1.00 ± 0.02. Use ε = 0.05 kpc at 10M
+  and 0.2 at 100k (at 100k with 0.05, single gas particles dominate). `run_ics.sbatch` runs it.
+- **Compatibility history is in `reports/`**: `inkwell_gadget4_compatibility.md` (first test),
+  `inkwell_gadget4_retest.md` (4ab25f8), `inkwell_gadget4_retest2.md` (1ba0858). Check there
+  before assuming new behaviour is a bug.
 
 ## pynbody (2.8.0)
 - **Run analysis from `notebooks/`.** Its `config.ini` maps PartType2/3 to `star`; the default
@@ -81,5 +94,8 @@ InkWell (ICs) → Gadget4 (MPI, Slurm) → pynbody (analysis). Current work and 
   σ_z, Toomre Q.
 - `examples/mw_gas/relax_diag.py <run/output> ...` gives per-snapshot z_rms about each
   component's own centre, centre separations, Σ, fitted R_d and A₂.
+- Equilibrium test for new ICs: `sbatch run_gadget4_relax.sbatch <ics_dir> <run_name>` (10M,
+  300 Myr, every 25 Myr, ~1.4 h, 5.1 GB after deleting restart files), then notebook section 7.
+- Delete `output/restartfiles` once a run is final (1.4 GB for the relaxation run, 2.7 GB for 2 Gyr).
 - Run the notebook headless:
   `cd notebooks && MW_RUN=<run> jupyter nbconvert --to notebook --execute mw_gas_analysis.ipynb --output <out>.ipynb`.

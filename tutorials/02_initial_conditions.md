@@ -34,9 +34,9 @@ There is no thick disk, hot gas halo, or stellar halo; InkWell supports all thre
 |---|---|---|---|
 | DM halo | 6,000,000 | 60,000 | 1.35e5 Msun |
 | Stellar disk | 3,000,000 | 30,000 | 1.5e4 Msun |
-| Bulge | 666,667 | 6,667 | 1.5e4 Msun |
+| Bulge | 666,668 | 6,668 | 1.5e4 Msun |
 | Gas | 333,333 | 3,333 | 1.5e4 Msun |
-| **Total** | **10,000,000** | **100,000** | |
+| **Total** | **10,000,001** | **100,001** | |
 
 Why this split:
 
@@ -47,7 +47,7 @@ Why this split:
 * **60% of the particles go to the halo.** This keeps the halo's discreteness noise low in the
   region the disk lives in.
 
-### Three InkWell conventions to know
+### Five InkWell conventions to know
 
 1. **`halo.baryon_fraction`.** `virial_mass` is the total halo mass that sets r_vir and the NFW
    normalisation. By default InkWell removes a cosmic baryon share Ω_b/Ω_m (16% for Planck) from
@@ -56,14 +56,27 @@ Why this split:
 2. **The halo is tapered at r_vir.** The density is multiplied by exp(−(r/r_vir)²), so the live
    halo contains ~0.81 M_vir = 8.1e11 Msun. The inner profile is the untruncated NFW. InkWell
    prints the result: `Live DM halo mass < rcut = 8.1498e+11 Msun = 0.815 Mvir`.
-3. **Every component is recentred.** Random sampling leaves each component's centre of mass and
-   bulk velocity slightly off zero (about 0.2 kpc and a few km/s at 100k particles). InkWell
-   shifts each one to zero (`assembly.recentre`, on by default).
+3. **The halo and bulge are sampled in mirrored pairs** (`assembly.antithetic`, on by default).
+   InkWell draws N/2 particles and adds the mirror image (−x, −v) of each. The sample still follows
+   the distribution function, but its centre of mass, bulk velocity, and every odd multipole are
+   exactly zero. Without this, the halo's dense centre sits ~0.2 kpc off-centre at 100k particles
+   and the disk wanders ~0.4 kpc around it. An odd particle count is rounded up, which is why the
+   bulge has 6,668 (666,668) particles and the totals are 100,001 (10,000,001).
+4. **The disks are recentred** (`assembly.recentre`, on by default). Random sampling leaves each
+   disk's centre of mass and bulk velocity slightly off zero (up to 0.16 kpc and 4.6 km/s for the
+   100k gas disk); InkWell shifts each to zero.
+5. **The stellar disk is iterated into the self-consistent model** (`agama.disc_iterations`,
+   default 2). InkWell calibrates the disk's distribution function to the requested profile, then
+   rebuilds the potential from the disk it actually samples and recalibrates. Before this
+   (`disc_iterations: 0`), the potential held the *analytic* exponential disk while the sampled
+   disk had more mass inside 1 kpc and ~8% less at 3–4 kpc. The stars then started with too much
+   rotation for the potential they actually felt, and the disk "breathed" radially for its first
+   ~200 Myr (see tutorial 04, section 7). The cost is about 1.7× longer generation.
 
 With the default baryon fraction, the halo would hold only 6.8e11 Msun and v_c(8 kpc) would drop
-from 210 to 204 km/s.
+by about 6 km/s (measured with InkWell `4ab25f8`: 210 → 204 km/s).
 
-These conventions need InkWell ≥ `4ab25f8`, the commit pinned in `env/versions.env`.
+These conventions need InkWell ≥ `3e5907e`; `env/versions.env` pins `1ba0858`.
 
 ## 2. The configuration files
 
@@ -105,35 +118,53 @@ InkWell is serial Python, but Agama uses OpenMP threads, so run it on a full com
 
 ```bash
 cd examples/mw_gas
-# test ICs (100k): ~9 min on the debug partition
+# test ICs (100k): ~16 min on the debug partition
 sbatch --partition=debug run_ics.sbatch inkwell_mw_gas_test.yaml mw_gas_test
-# full ICs (10M)
+# full ICs (10M): ~17 min
 sbatch run_ics.sbatch inkwell_mw_gas.yaml mw_gas
 ```
 
-`run_ics.sbatch` runs
+`run_ics.sbatch` runs three steps:
 
 ```bash
-inkwell inkwell_mw_gas.yaml --format gadget4 --gadget-eos isothermal -o $NBODY_RUNS/ics/mw_gas --seed 42
-python check_ics.py $NBODY_RUNS/ics/mw_gas/ic_gadget.hdf5 --plot $NBODY_RUNS/ics/mw_gas/ics_check.png
+OUT=$NBODY_RUNS/ics/mw_gas
+python make_ics.py inkwell_mw_gas.yaml $OUT --gadget-eos isothermal --seed 42      # generate
+python check_ics.py $OUT/ic_gadget.hdf5 --plot $OUT/ics_check.png                   # our checks
+python $NBODY_RUNS/builds/src/InkWell/scripts/check_disc_equilibrium.py $OUT --softening 0.05
 ```
 
-and produces:
+**`make_ics.py`** generates the model once and writes it in two formats: `ic_gadget.hdf5` for
+Gadget-4 and `ic.hdf5` (InkWell's own format) for the equilibrium check. It is equivalent to
+`inkwell inkwell_mw_gas.yaml --format gadget4 --gadget-eos isothermal --seed 42`, which can
+only write one format per run.
+
+The script picks the checker's softening from the particle number: 0.05 kpc at 10M, 0.2 kpc at
+100k. It then deletes `ic.hdf5` (1.1 GB at 10M) unless you set `KEEP_INKWELL_HDF5=1`. The output:
 
 ```
 $NBODY_RUNS/ics/mw_gas/
-├── ic_gadget.hdf5      Gadget4 SnapFormat-3 ICs
-├── used_params.yaml    the full parameter set InkWell used (provenance)
-├── ics_check.png       diagnostic figure from check_ics.py
-└── inkwell_mw_gas.yaml copy of the input
+├── ic_gadget.hdf5        Gadget4 SnapFormat-3 ICs
+├── agama_potential.ini   the potential the distribution functions were built in
+├── used_params.yaml      the full parameter set InkWell used (provenance)
+├── ics_check.png         diagnostic figure from check_ics.py
+├── disc_equilibrium.txt  output of InkWell's disk-equilibrium check
+└── inkwell_mw_gas.yaml   copy of the input
 ```
 
 What to look for in the InkWell log:
 
-* `disc DF calibration 3: Rd(DF)=3.005 vs 3.000 kpc, z_half(R=hd)=330 vs 330 pc`. The disk DF
+* `Live DM halo mass < rcut = 8.1498e+11 Msun = 0.815 Mvir`. The halo particles actually carry
+  8.09e11 Msun; the logged value comes from a slightly different profile integration.
+* `disc DF calibration 3: Rd(DF)=2.999 vs 3.000 kpc, z_half(R=hd)=330 vs 330 pc`. The disk DF
   reproduces the requested scale length and thickness.
-* `Correcting halo bulk momentum`.
-* `Done. Total particles: ...` with the expected numbers per component.
+* `Agama: disc self-consistency iteration 2/2` with `sigma_r0` changing by < 1% from the first
+  pass. The disk and the potential agree.
+* `sampling 60000 dm_halo particles (30000 antithetic pairs)`, and in the recentring block
+  `bulge` and `dm_halo shifted by 0.000 kpc`.
+* `Done. Total particles: 100001`.
+
+`agama_potential.ini` is what InkWell's `check_disc_equilibrium.py` compares the particles
+against (see section 5).
 
 ### The file
 
@@ -179,14 +210,14 @@ python check_ics.py $NBODY_RUNS/ics/mw_gas_test/ic_gadget.hdf5 --softening 0.2
 Results for the test ICs:
 
 ```
-v_c(R = 8 kpc) = 209.5 km/s;  v_c in 5-20 kpc: 201-213 km/s
+v_c(R = 8 kpc) = 214.8 km/s;  v_c in 5-20 kpc: 200-217 km/s
 PASS: MW-like, roughly flat rotation curve
 Stellar disk:  R [kpc]  v_phi  sigma_R  sigma_z   Q
-                 3.5   154.1    82.8    48.1   2.09
-                 5.5   172.9    62.6    36.3   1.92
-                 7.5   185.9    48.8    27.0   2.00
-                11.5   199.3    26.2    14.9   2.32
-PASS: Toomre Q(2 R_d) = 1.92 (target ~2)
+                 3.5   152.0    82.1    47.5   1.96
+                 5.5   172.2    62.3    35.4   1.85
+                 7.5   186.2    47.4    27.8   1.95
+                11.5   199.8    25.9    15.3   2.55
+PASS: Toomre Q(2 R_d) = 1.85 (target ~2)
 ```
 
 ![IC diagnostics](img/ics_check_test.png)
@@ -203,5 +234,40 @@ How to read the figure:
 
 If v_c is too low, increase `virial_mass` or `concentration`. If Q < 1.5, increase `toomre_q` or
 use `sigma_r0`.
+
+## 5. Disk equilibrium (`check_disc_equilibrium.py`)
+
+InkWell's checker answers a question `check_ics.py` cannot: is the stellar disk in equilibrium in
+the potential the particles actually produce? If it is not, the disk "breathes" radially at the
+start of the simulation (tutorial 04, section 7). It runs two tests and writes
+`disc_equilibrium.txt`.
+
+**Test 1** compares the circular velocity of the Agama potential with that of the particles,
+separately for the spheroids (`Multipole`) and the disks (`CylSpline`). The disk ratio column
+should be 1.00 ± 0.02 at every radius. Our 10M model:
+
+```
+   CylSpline (discs) vs particles ['gas_disk_1', 'stellar_disk_0']:
+   R[kpc]   v_c(Agama)  v_c(part)  ratio
+      0.5         58.9       58.4  0.992
+      1.0         80.3       79.8  0.994
+      2.0        106.9      106.9  1.000
+      3.0        125.4      125.9  1.004
+      4.0        138.8      139.0  1.001
+      6.0        153.3      153.7  1.002
+      8.0        155.5      155.6  1.001
+     12.0        142.6      142.4  0.998
+     20.0        110.2      110.1  1.000
+```
+
+With the old static disk (`agama.disc_iterations: 0`) the same model gives 1.61 at 0.5 kpc and
+0.93 at 3–4 kpc.
+
+**Test 2** integrates 20,000 disk stars for 300 Myr in the Agama potential, with no N-body. The
+mean radial velocity ⟨v_R⟩ in every ring should stay within a few km/s of zero, without a
+coherent pattern. Our 10M model stays within ±3 km/s at 2–14 kpc.
+
+At 100k particles Test 1 is noisier: use 0.2 kpc softening and expect ratios within about ±0.04
+inside 1 kpc.
 
 Next: [03 — Running Gadget4](03_running_gadget4.md).

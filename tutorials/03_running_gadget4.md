@@ -128,6 +128,20 @@ ICJ=$(sbatch --parsable run_ics.sbatch inkwell_mw_gas.yaml mw_gas)
 sbatch --dependency=afterok:$ICJ run_gadget4.sbatch
 ```
 
+### Relaxation test
+
+`run_gadget4_relax.sbatch` runs the full-resolution model for only 300 Myr, with a snapshot every
+25 Myr (`param_relax.txt`, 13 snapshots ≈ 4.8 GB, ~1.4 h on 128 cores). Use it to check that new
+initial conditions start in equilibrium before committing to a long run:
+
+```bash
+sbatch run_gadget4_relax.sbatch $NBODY_RUNS/ics/mw_gas mw_gas_relax   # ICS_DIR  RUN_NAME
+```
+
+Then run `relax_diag.py $NBODY_RUNS/runs/mw_gas_relax/output`, or section 7 of the analysis
+notebook (tutorial 04). A disk in equilibrium keeps |⟨v_R⟩| ≲ 1 km/s in every ring at 10M
+particles.
+
 ## 5. Monitoring
 
 ```bash
